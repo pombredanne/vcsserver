@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+var Offline bool
+
 // Handler contains settings for vcsserver and implements http.Handler.
 type Handler struct {
 	// Hosts is a whitelist of hosts whose repositories may be accessed.
@@ -71,6 +73,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = proxy(w, r, route, dir)
 	case singleFileAction:
 		err = file(w, r, route.vcs, dir, route.extraPath)
+	case batchFileAction:
+		err = batchFile(w, r, route.vcs, dir, route.extraPath)
 	case blameAction:
 		err = blameRepository(w, r, route.vcs, dir)
 	default:
@@ -97,6 +101,7 @@ type action string
 const (
 	proxyAction      action = "proxy"
 	singleFileAction        = "singleFile"
+	batchFileAction         = "batchFile"
 	blameAction             = "blame"
 )
 
@@ -150,6 +155,8 @@ func router(hosts []string, path string) (*route, *httpError) {
 	var action action
 	if strings.HasPrefix(extraPath, "/v/") {
 		action = singleFileAction
+	} else if strings.HasPrefix(extraPath, "/v-batch/") {
+		action = batchFileAction
 	} else if strings.HasPrefix(extraPath, "/api/blame") {
 		action = blameAction
 	} else {
